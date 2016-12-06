@@ -192,11 +192,18 @@ int restore_cpu_affinity(cpu_set_t * prev_mask);
 int bind_to_cpu(uint32 cpu_id);
 
 
+static void hp_print_zstr(zend_string *key);
+
 
 ///定义方法实现
 //////////////////////////
 //////////////////////////
 
+static void hp_print_zstr(zend_string *key){
+    php_printf("---");
+    PHPWRITE(ZSTR_VAL(key), ZSTR_LEN(key));
+    php_printf("---");
+}
 
 
 /**
@@ -573,6 +580,8 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
     /* extract function name from the meta info */
     func = (curr_func->common.function_name->val);
 
+    hp_print_zstr(&curr_func->common.function_name);
+
     // php_printf("func:", func);
     // php_printf("\n");
     // return "123";
@@ -617,8 +626,13 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
         snprintf(ret, len, "%s::%s", cls, func);
       } else {
         php_printf("hp33");
-        return "111";
+        php_printf("\n");
+        //php_var_dump();
+        return "ddd";
         ret = estrdup(func);
+        php_printf(ret);
+        php_printf("\n");
+        return "111";
       }
 
       return "123";
