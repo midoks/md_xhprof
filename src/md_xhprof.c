@@ -25,6 +25,8 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+#include "ext/standard/php_var.h"
+#include "main/php_output.h"
 #include "Zend/zend.h"
 #include "Zend/zend_operators.h"
 
@@ -151,7 +153,7 @@ static hp_global_t       hp_globals;
 static void (*_zend_execute_ex) (zend_execute_data *execute_data TSRMLS_DC);
 
 /* Pointer to the origianl execute_internal function */
-static void (*_zend_execute_internal) (zend_execute_data *data, zval *return_value TSRMLS_DC);
+static void (*_zend_execute_internal) (zend_execute_data *execute_data, zval *return_value TSRMLS_DC);
 
 /* Pointer to the original compile function */
 static zend_op_array * (*_zend_compile_file) (zend_file_handle *file_handle, int type TSRMLS_DC);
@@ -200,9 +202,9 @@ static void hp_print_zstr(zend_string *key);
 //////////////////////////
 
 static void hp_print_zstr(zend_string *key){
-    php_printf("---");
-    PHPWRITE(ZSTR_VAL(key), ZSTR_LEN(key));
-    php_printf("---");
+  php_printf("<!--[zend_string](");
+  PHPWRITE(ZSTR_VAL(key), ZSTR_LEN(key));
+  php_printf(")-->\n");
 }
 
 
@@ -299,10 +301,14 @@ void hp_init_profiler_state(int level TSRMLS_DC) {
 
   /* Init stats_count */
   if (hp_globals.stats_count) {
+    php_printf("bbbb---|||---\n");
     zval_dtor(hp_globals.stats_count);
     efree(hp_globals.stats_count);
   }
-  array_init(hp_globals.stats_count);
+
+  //return ;
+  //array_init(hp_globals.stats_count);
+  // return ;
 
   /* NOTE(cjiang): some fields such as cpu_frequencies take relatively longer
    * to initialize, (5 milisecond per logical cpu right now), therefore we
@@ -367,7 +373,7 @@ void hp_clean_profiler_state(TSRMLS_D) {
       /* Call the universal callback */                                 \
       hp_mode_common_beginfn((entries), (cur_entry) TSRMLS_CC);         \
       /* Call the mode's beginfn callback */                            \
-  /*hp_globals.mode_cb.begin_fn_cb((entries), (cur_entry) TSRMLS_CC);*/ \
+      hp_globals.mode_cb.begin_fn_cb((entries), (cur_entry) TSRMLS_CC); \
       /* Update entries linked list */                                  \
       (*(entries)) = (cur_entry);                                       \
     }                                                                   \
@@ -391,7 +397,7 @@ void hp_clean_profiler_state(TSRMLS_D) {
       /* NOTE(cjiang): we want to call this 'end_fn_cb' before */       \
       /* 'hp_mode_common_endfn' to avoid including the time in */       \
       /* 'hp_mode_common_endfn' in the profiling results.      */       \
-      /* hp_globals.mode_cb.end_fn_cb((entries) TSRMLS_CC);*/           \
+      hp_globals.mode_cb.end_fn_cb((entries) TSRMLS_CC);                \
       /*php_printf("ddd|ppp");*/ \
       /*break;*/ \
       cur_entry = (*(entries));                                         \
@@ -528,31 +534,6 @@ size_t hp_get_function_stack(hp_entry_t *entry,
                                  result_len - len);
 }
 
-/**
- * Takes an input of the form /a/b/c/d/foo.php and returns
- * a pointer to one-level directory and basefile name
- * (d/foo.php) in the same string.
- */
-static const char *hp_get_base_filename(const char *filename) {
-  const char *ptr;
-  int   found = 0;
-
-  if (!filename)
-    return "";
-
-  /* reverse search for "/" and return a ptr to the next char */
-  for (ptr = filename + strlen(filename) - 1; ptr >= filename; ptr--) {
-    if (*ptr == '/') {
-      found++;
-    }
-    if (found == 2) {
-      return ptr + 1;
-    }
-  }
-
-  /* no "/" char found, so return the whole string */
-  return filename;
-}
 
 /**
  * Get the name of the current function. The name is qualified with
@@ -562,14 +543,12 @@ static const char *hp_get_base_filename(const char *filename) {
  */
 static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
   zend_execute_data *data;
-  const char        *func = NULL;
-  const char        *cls = NULL;
-  char              *ret = NULL;
-  int                len;
 
-  zend_function      *curr_func;
-  //zend_string *func;
-  //zend_string *cls;
+  zend_function      *curr_func = NULL;
+  zend_string        *func  = NULL;
+  zend_string        *cls   = NULL;
+  char               *ret   = NULL;
+  int                len;
 
   data = EG(current_execute_data);
 
@@ -578,13 +557,7 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
     curr_func = data->func;
 
     /* extract function name from the meta info */
-    func = (curr_func->common.function_name->val);
-
-    hp_print_zstr(&curr_func->common.function_name);
-
-    // php_printf("func:", func);
-    // php_printf("\n");
-    // return "123";
+    func = curr_func->common.function_name;
 
     if (func) {
       /* previously, the order of the tests in the "if" below was
@@ -595,54 +568,42 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
        * of the object.
        */
 
-      // php_printf("hp_get_function_name");
-      // php_printf("\n");
-      // php_printf("func", func);
-      // php_printf("\n");
-      // return "123";
-
+      // php_printf("func:");
+      // hp_print_zstr(func);
+      // php_printf("func_len:%d\n", ZSTR_LEN(func));
+     
       if (curr_func->common.scope) {
-      	cls = curr_func->common.scope->name->val;
+        cls = curr_func->common.scope->name;
       } else if (data->called_scope) {
-        cls = data->called_scope->name->val;
+        cls = data->called_scope->name;
       }
 
-      php_printf("func:", cls);
-      php_printf("\n");
-      php_printf("hp_get_function_name_bb");
-      php_printf("\n");
+      if ( cls ) {
 
-      
+        // php_printf("class_val:%s\n", ZSTR_VAL(cls));
+        // php_printf("class_len:%d\n", ZSTR_LEN(cls));
 
-      if (cls) {
-        php_printf("hp111");
-        return "111";
-        len = strlen(cls) + strlen(func) + 10;
+        // php_printf("class:");
+        // hp_print_zstr(cls);
 
-        php_printf("hp222");
-        return "111";
+        len = ZSTR_LEN(cls) + ZSTR_LEN(func)+3;
 
         ret = (char*)emalloc(len);
-        snprintf(ret, len, "%s::%s", cls, func);
+        snprintf(ret, len, "%s::%s", ZSTR_VAL(cls), ZSTR_VAL(func));
+
       } else {
-        php_printf("hp33");
-        php_printf("\n");
-        //php_var_dump();
-        return "ddd";
-        ret = estrdup(func);
-        php_printf(ret);
-        php_printf("\n");
-        return "111";
+
+        len = ZSTR_LEN(func)+1;
+        ret = (char*)emalloc(len);
+        snprintf(ret, len, "%s", ZSTR_VAL(func));
       }
 
-      return "123";
     } else {
-      php_printf("hp_get_function_name2");
-      php_printf("\n");
-      return "123";
 
       long     curr_op;
       int      add_filename = 0;
+
+      const char        *_func = NULL;
 
       /* we are dealing with a special directive/function like
        * include, eval, etc.
@@ -655,26 +616,26 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
 
       switch (curr_op) {
         case ZEND_EVAL:
-          func = "eval";
+          _func = "eval";
           break;
         case ZEND_INCLUDE:
-          func = "include";
+          _func = "include";
           add_filename = 1;
           break;
         case ZEND_REQUIRE:
-          func = "require";
+          _func = "require";
           add_filename = 1;
           break;
         case ZEND_INCLUDE_ONCE:
-          func = "include_once";
+          _func = "include_once";
           add_filename = 1;
           break;
         case ZEND_REQUIRE_ONCE:
-          func = "require_once";
+          _func = "require_once";
           add_filename = 1;
           break;
         default:
-          func = "???_op";
+          _func = "???_op";
           break;
       }
 
@@ -690,7 +651,7 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
         ret      = (char *)emalloc(len);
         snprintf(ret, len, "run_init::%s", filename);
       } else {
-        ret = estrdup(func);
+        ret = estrdup(_func);
       }
     }
   }
@@ -1008,6 +969,7 @@ void hp_mode_dummy_endfn_cb(hp_entry_t **entries   TSRMLS_DC) { }
 void hp_mode_common_beginfn(hp_entry_t **entries,
                             hp_entry_t  *current  TSRMLS_DC) {
   hp_entry_t   *p;
+  php_printf("<!--  hp_mode_common_beginfn start -->\n");
 
   /* This symbol's recursive level */
   int    recurse_level = 0;
@@ -1025,6 +987,8 @@ void hp_mode_common_beginfn(hp_entry_t **entries,
 
   /* Init current function's recurse level */
   current->rlvl_hprof = recurse_level;
+
+  php_printf("<!--  hp_mode_common_beginfn end -->\n");
 }
 
 /**
@@ -1036,7 +1000,9 @@ void hp_mode_common_beginfn(hp_entry_t **entries,
  * @author kannan, veeve
  */
 void hp_mode_common_endfn(hp_entry_t **entries, hp_entry_t *current TSRMLS_DC) {
+  php_printf("<!--  hp_mode_common_endfn start -->\n");
   hp_globals.func_hash_counters[current->hash_code]--;
+  php_printf("<!--  hp_mode_common_endfn end -->\n");
 }
 
 
@@ -1051,6 +1017,8 @@ void hp_mode_common_endfn(hp_entry_t **entries, hp_entry_t *current TSRMLS_DC) {
  * @author veeve
  */
 void hp_mode_sampled_init_cb(TSRMLS_D) {
+  printf("<!-- hp_mode_sampled_init_cb start -->\n");
+
   struct timeval  now;
   uint64 truncated_us;
   uint64 truncated_tsc;
@@ -1075,6 +1043,8 @@ void hp_mode_sampled_init_cb(TSRMLS_D) {
   /* Convert sampling interval to ticks */
   hp_globals.sampling_interval_tsc =
     get_tsc_from_us(XHPROF_SAMPLING_INTERVAL, cpu_freq);
+
+  printf("<!-- hp_mode_sampled_init_cb end -->\n");
 }
 
 
@@ -1091,6 +1061,7 @@ void hp_mode_sampled_init_cb(TSRMLS_D) {
  */
 void hp_mode_hier_beginfn_cb(hp_entry_t **entries,
                              hp_entry_t  *current  TSRMLS_DC) {
+  php_printf("<!--  hp_mode_hier_beginfn_cb start -->\n");
   /* Get start tsc counter */
   current->tsc_start = cycle_timer();
 
@@ -1104,6 +1075,7 @@ void hp_mode_hier_beginfn_cb(hp_entry_t **entries,
     current->mu_start_hprof  = zend_memory_usage(0 TSRMLS_CC);
     current->pmu_start_hprof = zend_memory_peak_usage(0 TSRMLS_CC);
   }
+  php_printf("<!--  hp_mode_hier_beginfn_cb end -->\n");
 }
 
 
@@ -1157,6 +1129,8 @@ zval * hp_mode_shared_endfn_cb(hp_entry_t *top,
  * @author kannan
  */
 void hp_mode_hier_endfn_cb(hp_entry_t **entries  TSRMLS_DC) {
+  php_printf("<!--  hp_mode_hier_endfn_cb start -->\n");
+
   hp_entry_t   *top = (*entries);
   zval            *counts;
   struct rusage    ru_end;
@@ -1192,6 +1166,7 @@ void hp_mode_hier_endfn_cb(hp_entry_t **entries  TSRMLS_DC) {
     hp_inc_count(counts, "mu",  mu_end - top->mu_start_hprof    TSRMLS_CC);
     hp_inc_count(counts, "pmu", pmu_end - top->pmu_start_hprof  TSRMLS_CC);
   }
+  php_printf("<!--  hp_mode_hier_endfn_cb end -->\n");
 }
 
 /**
@@ -1219,12 +1194,14 @@ void hp_mode_sampled_endfn_cb(hp_entry_t **entries  TSRMLS_DC) {
  * @author hzhao, kannan
  */
 ZEND_DLEXPORT void hp_execute_ex (zend_execute_data *execute_data TSRMLS_DC) {
-  zend_op_array *ops = &execute_data->func->op_array;
+  php_printf("<!-- hp_execute_ex in start -->\n");
+
+  zend_op_array *ops  = &execute_data->func->op_array;
   char          *func = NULL;
   int hp_profile_flag = 1;
 
   func = hp_get_function_name(ops TSRMLS_CC);
-  return;
+  php_printf("hp_execute_ex - func:%s\n",func);
   if (!func) {
     _zend_execute_ex(execute_data TSRMLS_CC);
     return;
@@ -1232,10 +1209,13 @@ ZEND_DLEXPORT void hp_execute_ex (zend_execute_data *execute_data TSRMLS_DC) {
 
   BEGIN_PROFILING(&hp_globals.entries, func, hp_profile_flag);
   _zend_execute_ex(execute_data TSRMLS_CC);
+
   if (hp_globals.entries) {
     END_PROFILING(&hp_globals.entries, hp_profile_flag);
   }
+
   efree(func);
+  php_printf("<!-- hp_execute_ex in end -->\n");
 }
 
 #undef EX
@@ -1248,78 +1228,32 @@ ZEND_DLEXPORT void hp_execute_ex (zend_execute_data *execute_data TSRMLS_DC) {
  * @author hzhao, kannan
  */
 
-#if PHP_VERSION_ID < 50500
-#define EX_T(offset) (*(temp_variable *)((char *) EX(Ts) + offset))
-
-ZEND_DLEXPORT void hp_execute_internal(zend_execute_data *execute_data,
-                                       int ret TSRMLS_DC) {
-#else
 #define EX_T(offset) (*EX_TMP_VAR(execute_data, offset))
 
 ZEND_DLEXPORT void hp_execute_internal(zend_execute_data *execute_data, zval *return_value TSRMLS_DC ) {
-                                       //struct _zend_fcall_info *fci, int ret TSRMLS_DC
-#endif
+  //php_var_dump(return_value, 1);
+  php_printf("<!-- hp_execute_internal in start -->\n");
+
   zend_execute_data *current_data;
   char             *func = NULL;
   int    hp_profile_flag = 1;
 
   current_data = EG(current_execute_data);
   func = hp_get_function_name(&current_data->func->op_array TSRMLS_CC);
-
+  php_printf("hp_execute_internal - cls:%s\n",func);
+  
   if (func) {
     BEGIN_PROFILING(&hp_globals.entries, func, hp_profile_flag);
   }
 
-  if (!_zend_execute_internal) {
-    /* no old override to begin with. so invoke the builtin's implementation  */
-
-#if ZEND_EXTENSION_API_NO >= 220121212
-    /* PHP 5.5. This is just inlining a copy of execute_internal(). */
-
-    if (fci != NULL) {
-      ((zend_internal_function *) execute_data->function_state.function)->handler(
-        fci->param_count,
-        *fci->retval_ptr_ptr,
-        fci->retval_ptr_ptr,
-        fci->object_ptr,
-        1 TSRMLS_CC);
-    } else {
-      zval **return_value_ptr = &EX_TMP_VAR(execute_data, execute_data->opline->result.var)->var.ptr;
-      ((zend_internal_function *) execute_data->function_state.function)->handler(
-        execute_data->opline->extended_value,
-        *return_value_ptr,
-        (execute_data->function_state.function->common.fn_flags & ZEND_ACC_RETURN_REFERENCE)
-          ? return_value_ptr
-          : NULL,
-        execute_data->object,
-        ret TSRMLS_CC);
+	if (func) {
+    if (hp_globals.entries) {
+      END_PROFILING(&hp_globals.entries, hp_profile_flag);
     }
-#elif ZEND_EXTENSION_API_NO >= 220100525
-    // zend_op *opline = EX(opline);
-    // temp_variable *retvar = &EX_T(opline->result.var);
-    // ((zend_internal_function *) EX(function_state).function)->handler(
-    //                    opline->extended_value,
-    //                    retvar->var.ptr,
-    //                    (EX(function_state).function->common.fn_flags & ZEND_ACC_RETURN_REFERENCE) ?
-    //                    &retvar->var.ptr:NULL,
-    //                    EX(object), ret TSRMLS_CC);
-#else
-    // zend_op *opline = EX(opline);
-    // ((zend_internal_function *) EX(func))->handler(
-    //                    opline->extended_value,
-    //                    EX_T(opline->result.var).var.ptr,
-    //                    EX(func)->common.return_reference ?
-    //                    &EX_T(opline->result.var).var.ptr : NULL,
-    //                    EX(object), ret TSRMLS_CC);
-#endif
-  	}
-
-		if (func) {
-	    	if (hp_globals.entries) {
-	      	END_PROFILING(&hp_globals.entries, hp_profile_flag);
-	    }
-	    efree(func);
+    efree(func);
 	}
+
+  php_printf("<!-- hp_execute_internal in end -->\n");
 }
 
 /**
@@ -1328,7 +1262,7 @@ ZEND_DLEXPORT void hp_execute_internal(zend_execute_data *execute_data, zval *re
  * @author kannan, hzhao
  */
 ZEND_DLEXPORT zend_op_array* hp_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC) {
-
+  php_printf("<!-- hp_compile_file in start -->\n");
   const char     *filename;
   char           *func;
   int             len;
@@ -1341,11 +1275,9 @@ ZEND_DLEXPORT zend_op_array* hp_compile_file(zend_file_handle *file_handle, int 
   func      = (char *)emalloc(len);
   snprintf(func, len, "load::%s", filename);
 
-  
   BEGIN_PROFILING(&hp_globals.entries, func, hp_profile_flag);
 
-  php_printf("load::%s", filename);
-  php_printf("\n");
+  php_printf("load::%s\n", filename);
 
   ret = _zend_compile_file(file_handle, type TSRMLS_CC);
 
@@ -1354,6 +1286,8 @@ ZEND_DLEXPORT zend_op_array* hp_compile_file(zend_file_handle *file_handle, int 
   }
 
   efree(func);
+
+  php_printf("<!-- hp_compile_file in end -->\n");
   return ret;
 }
 
@@ -1361,7 +1295,7 @@ ZEND_DLEXPORT zend_op_array* hp_compile_file(zend_file_handle *file_handle, int 
  * Proxy for zend_compile_string(). Used to profile PHP eval compilation time.
  */
 ZEND_DLEXPORT zend_op_array* hp_compile_string(zval *source_string, char *filename TSRMLS_DC) {
-
+    php_printf("<!-- hp_compile_string in start -->\n");
     char          *func;
     int            len;
     zend_op_array *ret;
@@ -1378,6 +1312,7 @@ ZEND_DLEXPORT zend_op_array* hp_compile_string(zval *source_string, char *filena
     }
 
     efree(func);
+    php_printf("<!-- hp_compile_string in end -->\n");
     return ret;
 }
 
@@ -1398,23 +1333,26 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
 
     hp_globals.enabled      = 1;
     hp_globals.xhprof_flags = (uint32)xhprof_flags;
-
     
+    php_printf("<!--(hp_compile_file) start -->\n");
     /* Replace zend_compile with our proxy */
     _zend_compile_file = zend_compile_file;
     zend_compile_file  = hp_compile_file;
- 
+    php_printf("<!--(hp_compile_file) end -->\n");
 
+    php_printf("<!--(hp_compile_string) start -->\n");
     /* Replace zend_compile_string with our proxy */
     _zend_compile_string = zend_compile_string;
     zend_compile_string = hp_compile_string;
+    php_printf("<!--(hp_compile_string) end -->\n");
 
+    php_printf("<!--(hp_execute_ex) start -->\n");
     /* Replace zend_execute with our proxy */
     _zend_execute_ex = zend_execute_ex;
     zend_execute_ex  = hp_execute_ex;
-    return;
-
-
+    php_printf("<!--(hp_execute_ex) end -->\n");
+    
+    php_printf("<!--(hp_execute_internal) start -->\n");
     /* Replace zend_execute_internal with our proxy */
     _zend_execute_internal = zend_execute_internal;
     if (!(hp_globals.xhprof_flags & XHPROF_FLAGS_NO_BUILTINS)) {
@@ -1423,6 +1361,8 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
        */
       zend_execute_internal = hp_execute_internal;
     }
+    php_printf("<!--(hp_execute_internal) end -->\n");
+    
 
     /* Initialize with the dummy mode first Having these dummy callbacks saves
      * us from checking if any of the callbacks are NULL everywhere. */
@@ -1430,6 +1370,7 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
     hp_globals.mode_cb.exit_cb     = hp_mode_dummy_exit_cb;
     hp_globals.mode_cb.begin_fn_cb = hp_mode_dummy_beginfn_cb;
     hp_globals.mode_cb.end_fn_cb   = hp_mode_dummy_endfn_cb;
+
 
     /* Register the appropriate callback functions Override just a subset of
      * all the callbacks is OK. */
@@ -1444,6 +1385,8 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
         hp_globals.mode_cb.end_fn_cb   = hp_mode_sampled_endfn_cb;
         break;
     }
+
+
 
     /* one time initializations */
     hp_init_profiler_state(level TSRMLS_CC);
@@ -1461,6 +1404,8 @@ static void hp_end(TSRMLS_D) {
   if (!hp_globals.ever_enabled) {
     return;
   }
+
+  return;
 
   /* Stop profiler if enabled */
   if (hp_globals.enabled) {
@@ -1483,13 +1428,11 @@ static void hp_stop(TSRMLS_D) {
     END_PROFILING(&hp_globals.entries, hp_profile_flag);
   }
 
-  return;
+ 
   zend_execute_ex       = _zend_execute_ex;
   zend_execute_internal = _zend_execute_internal;
   zend_compile_file     = _zend_compile_file;
   zend_compile_string   = _zend_compile_string;
-
-
 
   /* Resore cpu affinity. */
   restore_cpu_affinity(&hp_globals.prev_mask);
@@ -1655,7 +1598,7 @@ PHP_FUNCTION(xhprof_enable) {
 
   hp_get_ignored_functions_from_arg(optional_array);
   hp_begin(XHPROF_MODE_HIERARCHICAL, xhprof_flags TSRMLS_CC);
-  php_printf("xhprof_enable3\n");
+  php_printf("xhprof_enable\n");
 }
 
 /**
@@ -1667,11 +1610,20 @@ PHP_FUNCTION(xhprof_enable) {
  * @author kannan, hzhao
  */
 PHP_FUNCTION(xhprof_disable) {
-  php_printf("xhprof_disable3\n");
+  php_printf("\nxhprof_disable start\n");
 	if (hp_globals.enabled) {
 		hp_stop(TSRMLS_C);
-		//RETURN_ZVAL(hp_globals.stats_count, 1, 0);
+    php_printf("hp_globals in \n");
+    if (hp_globals.stats_count){
+      RETURN_ZVAL(hp_globals.stats_count, 1, 0);
+    } else {
+      php_printf("没有数据\n");
+    }
+    //php_var_dump(hp_globals.stats_count, 1);
+		//RETURN_ZVAL(hp_globals.stats_count, 0, 1);
 	}
+
+  php_printf("xhprof_disable end\n");
   /* else null is returned */
 }
 
@@ -1683,8 +1635,8 @@ PHP_FUNCTION(xhprof_disable) {
  */
 PHP_FUNCTION(xhprof_sample_enable) {
 	long  xhprof_flags = 0;                                    /* XHProf flags */
-  	hp_get_ignored_functions_from_arg(NULL);
-  	hp_begin(XHPROF_MODE_SAMPLED, xhprof_flags TSRMLS_CC);
+  hp_get_ignored_functions_from_arg(NULL);
+  hp_begin(XHPROF_MODE_SAMPLED, xhprof_flags TSRMLS_CC);
 }
 
 /**
@@ -1767,12 +1719,12 @@ PHP_MINIT_FUNCTION(md_xhprof)
 PHP_MSHUTDOWN_FUNCTION(md_xhprof)
 {
 	/* Make sure cpu_frequencies is free'ed. */
-  	//clear_frequencies();
+  clear_frequencies();
 
-  	/* free any remaining items in the free list */
-  	//hp_free_the_free_list();
+  /* free any remaining items in the free list */
+	hp_free_the_free_list();
 
-  	//UNREGISTER_INI_ENTRIES();
+	UNREGISTER_INI_ENTRIES();
 	return SUCCESS;
 }
 /* }}} */
@@ -1794,7 +1746,7 @@ PHP_RINIT_FUNCTION(md_xhprof)
  */
 PHP_RSHUTDOWN_FUNCTION(md_xhprof)
 {
-	//hp_end(hp_globals TSRMLS_CC);
+	hp_end(TSRMLS_C);
 	return SUCCESS;
 }
 /* }}} */
@@ -1803,15 +1755,37 @@ PHP_RSHUTDOWN_FUNCTION(md_xhprof)
  */
 PHP_MINFO_FUNCTION(md_xhprof)
 {
+  char buf[SCRATCH_BUF_LEN];
+  char tmp[SCRATCH_BUF_LEN];
+  int i;
+  int len;
+
 	php_info_print_table_start();
 	php_info_print_table_header(2, "md_xhprof support", "enabled");
-	php_info_print_table_row(2, "Version", XHPROF_VERSION);
-	php_info_print_table_row(2, "PHP_VERSION_ID", PHP_VERSION);
 
+  len = snprintf(buf, SCRATCH_BUF_LEN, "%d", hp_globals.cpu_num);
+  buf[len] = 0;
+  php_info_print_table_header(2, "CPU num", buf);
+
+  if (hp_globals.cpu_frequencies) {
+    /* Print available cpu frequencies here. */
+    php_info_print_table_header(2, "CPU logical id", " Clock Rate (MHz) ");
+    for (i = 0; i < hp_globals.cpu_num; ++i) {
+      len = snprintf(buf, SCRATCH_BUF_LEN, " CPU %d ", i);
+      buf[len] = 0;
+      len = snprintf(tmp, SCRATCH_BUF_LEN, "%f", hp_globals.cpu_frequencies[i]);
+      tmp[len] = 0;
+      php_info_print_table_row(2, buf, tmp);
+    }
+  }
+
+	
+  php_info_print_table_row(2, "Version", XHPROF_VERSION);
+	php_info_print_table_row(2, "PHP_VERSION_ID", PHP_VERSION);
 	php_info_print_table_row(2, "time", "232");
+
 	php_info_print_table_end();
 
-	DISPLAY_INI_ENTRIES();
 }
 /* }}} */
 

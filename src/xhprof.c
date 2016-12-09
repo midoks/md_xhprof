@@ -171,6 +171,33 @@ void hp_array_del(char **name_array) {
   }
 }
 
+/**
+ * Takes an input of the form /a/b/c/d/foo.php and returns
+ * a pointer to one-level directory and basefile name
+ * (d/foo.php) in the same string.
+ */
+const char *hp_get_base_filename(const char *filename) {
+  const char *ptr;
+  int   found = 0;
+
+  if (!filename)
+    return "";
+
+  /* reverse search for "/" and return a ptr to the next char */
+  for (ptr = filename + strlen(filename) - 1; ptr >= filename; ptr--) {
+    if (*ptr == '/') {
+      found++;
+    }
+    if (found == 2) {
+      return ptr + 1;
+    }
+  }
+
+  /* no "/" char found, so return the whole string */
+  return filename;
+}
+
+
 /*
  * Local variables:
  * tab-width: 4

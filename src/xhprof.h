@@ -126,6 +126,7 @@ uint64 get_tsc_from_us(uint64 usecs, double cpu_frequency);
 
 uint8 hp_inline_hash(char * str);
 void hp_array_del(char **name_array);
+const char *hp_get_base_filename(const char *filename);
 
 /*
  * Local variables:
