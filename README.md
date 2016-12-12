@@ -1,4 +1,5 @@
 # md_xhprof
+为xhprof升级版,与PHP7配合使用
 
 # 安装
 
