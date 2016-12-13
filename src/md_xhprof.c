@@ -31,6 +31,7 @@
 #include "xhprof.h"
 
 
+
 /**
  * *****************************
  * GLOBAL DATATYPES AND TYPEDEFS
@@ -144,6 +145,7 @@ typedef struct hp_global_t {
  */
 /* XHProf global state */
 static hp_global_t       hp_globals;
+static zval              hp_globals_counts;
 
 
 /* Pointer to the original execute function */
@@ -327,8 +329,6 @@ void hp_clean_profiler_state(TSRMLS_D) {
   hp_globals.mode_cb.exit_cb(TSRMLS_C);
 
   /* Clear globals */
-  array_init(&hp_globals.stats_count);
-
   hp_globals.entries = NULL;
   hp_globals.profiler_level = 1;
   hp_globals.ever_enabled = 0;
@@ -558,8 +558,6 @@ static char *hp_get_function_name(zend_op_array *ops TSRMLS_DC) {
      
       if (curr_func->common.scope) {
         cls = curr_func->common.scope->name;
-      } else if (data->called_scope) {
-        cls = data->called_scope->name;
       }
 
       if ( cls ) {
@@ -702,22 +700,17 @@ void hp_inc_count(zval *counts, char *name, long count TSRMLS_DC) {
 
   if (!counts) return;
 
-  zend_string *key = zend_string_init(name, strlen(name), 0);
   ht = Z_ARRVAL_P(counts);
+  
   if(0 == ht->nNumOfElements){
 
     add_assoc_long(counts, "ct", 1);
   } else {
 
-    if(zend_hash_exists(ht, key)){
-
-      data = zend_hash_find(ht, key);
-      // php_printf("name:%s\n",name);
-      // php_printf("value:%d\n", Z_LVAL_P(data));
-
+    if(zend_hash_str_exists(ht, name, strlen(name)+1)){
+      data = zend_hash_str_find(ht, name, strlen(name)+1);
       add_assoc_long(counts, name, Z_LVAL_P(data) + count);
     } else {
-
       add_assoc_long(counts, name, count);
     }
   }
@@ -732,7 +725,6 @@ void hp_inc_count(zval *counts, char *name, long count TSRMLS_DC) {
 zval * hp_hash_lookup(char *symbol  TSRMLS_DC) {
   HashTable    *ht  = NULL;
   zval        *counts_p = NULL;
-  static zval  hp_globals_counts;
 
   /* Lookup our hash table */
   ht = Z_ARRVAL_P(&hp_globals.stats_count);
@@ -743,10 +735,10 @@ zval * hp_hash_lookup(char *symbol  TSRMLS_DC) {
     add_assoc_zval(&hp_globals.stats_count, symbol, counts_p);
   } else {
 
-    zend_string *key = zend_string_init(symbol, strlen(symbol), 1);
-    if(zend_hash_exists(ht, key)){
-      counts_p = zend_hash_find(ht, key);
+    if(zend_hash_str_exists(ht, symbol, strlen(symbol) + 1)){
+      counts_p = zend_hash_str_find(ht, symbol, strlen(symbol) + 1);
     } else {
+
       array_init(&hp_globals_counts);
       add_assoc_zval(&hp_globals.stats_count, symbol, &hp_globals_counts);
     }
@@ -896,10 +888,10 @@ static void get_all_cpu_frequencies() {
  */
 int restore_cpu_affinity(cpu_set_t * prev_mask) {
 
-  // if (SET_AFFINITY(0, sizeof(cpu_set_t), prev_mask) < 0) {
-  //   perror("restore setaffinity");
-  //   return -1;
-  // }
+  if (SET_AFFINITY(0, sizeof(cpu_set_t), prev_mask) < 0) {
+    perror("restore setaffinity");
+    return -1;
+  }
 
   /* default value ofor cur_cpu_id is 0. */
   hp_globals.cur_cpu_id = 0;
@@ -1181,6 +1173,7 @@ ZEND_DLEXPORT void hp_execute_ex (zend_execute_data *execute_data TSRMLS_DC) {
   int hp_profile_flag = 1;
 
   func = hp_get_function_name(ops TSRMLS_CC);
+  //php_printf("func:%s\n", func);
   if (!func) {
     _zend_execute_ex(execute_data TSRMLS_CC);
     return;
@@ -1216,19 +1209,18 @@ ZEND_DLEXPORT void hp_execute_internal(zend_execute_data *execute_data, zval *re
 
   current_data = EG(current_execute_data);
   func = hp_get_function_name(&current_data->func->op_array TSRMLS_CC);
-  
+  //php_printf("func:%s\n", func);
   if (func) {
+
     BEGIN_PROFILING(&hp_globals.entries, func, hp_profile_flag);
-  }
 
-  execute_internal(execute_data, return_value);
+    execute_internal(execute_data, return_value);
 
-	if (func) {
     if (hp_globals.entries) {
       END_PROFILING(&hp_globals.entries, hp_profile_flag);
     }
     efree(func);
-	}
+  }
 
 }
 
@@ -1254,7 +1246,6 @@ ZEND_DLEXPORT zend_op_array* hp_compile_file(zend_file_handle *file_handle, int 
   BEGIN_PROFILING(&hp_globals.entries, func, hp_profile_flag);
 
   //php_printf("load::%s\n", filename);
-
   ret = _zend_compile_file(file_handle, type TSRMLS_CC);
 
   if (hp_globals.entries) {
@@ -1326,7 +1317,6 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
        */
       zend_execute_internal = hp_execute_internal;
     }
-  
     
 
     /* Initialize with the dummy mode first Having these dummy callbacks saves
@@ -1364,19 +1354,26 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
  * Called at request shutdown time. Cleans the profiler's global state.
  */
 static void hp_end(TSRMLS_D) {
+
   /* Bail if not ever enabled */
   if (!hp_globals.ever_enabled) {
     return;
   }
 
+  php_var_dump(&hp_globals.stats_count, 0);
 
+  // if(hp_globals.enabled){
+  //   zval_dtor(&hp_globals.stats_count);
+  // }
+  
+  //array_init(&hp_globals.stats_count);
+  //zval_dtor(&hp_globals_counts);
+
+  //php_printf("hp_end - %d\n", hp_globals.enabled);
   /* Stop profiler if enabled */
   if (hp_globals.enabled) {
     hp_stop(TSRMLS_C);
   }
-
-
-  //return;
 
   /* Clean up state */
   hp_clean_profiler_state(TSRMLS_C);
@@ -1388,6 +1385,8 @@ static void hp_end(TSRMLS_D) {
  */
 static void hp_stop(TSRMLS_D) {
   int   hp_profile_flag = 1;
+
+  //php_printf("hp_stop - %d\n", hp_globals.enabled);
 
   /* End any unfinished calls */
   while (hp_globals.entries) {
@@ -1405,6 +1404,7 @@ static void hp_stop(TSRMLS_D) {
 
   /* Stop profiling */
   hp_globals.enabled = 0;
+
 }
 
 
@@ -1419,7 +1419,7 @@ static void hp_stop(TSRMLS_D) {
  *
  *  @author mpal
  **/
-static zval *hp_zval_at_key(char *key,zval *values) {
+static zval *hp_zval_at_key(char *key, zval *values) {
   zval *result = NULL;
 
   if (Z_TYPE_P(values) == IS_ARRAY) {
@@ -1428,13 +1428,8 @@ static zval *hp_zval_at_key(char *key,zval *values) {
     zval     **value;
     uint     len = strlen(key) + 1;
 
-    zend_string *keyz;
-    keyz = strpprintf(0, key);
-
-
     ht = Z_ARRVAL_P(values);
-    result = zend_hash_find(ht, keyz);
-    
+    result = zend_hash_str_find(ht, key, strlen(key));
   } else {
     result = NULL;
   }
@@ -1579,38 +1574,8 @@ PHP_FUNCTION(xhprof_enable) {
  */
 PHP_FUNCTION(xhprof_disable) {
 	if (hp_globals.enabled) {
-		hp_stop(TSRMLS_C);
-
-    // php_printf("hp_globals in \n");
-    
-
-    // zval b;
-    // zval c;
-
-    // array_init(&c);
-
-    // array_init(&b);
-    // add_assoc_string(&b, "ke", "b");
-    // add_assoc_zval(&b, "t", &c);
-    // php_var_dump(&b, 0);
-
-    // php_printf("c - nNumUsed:%d", Z_ARRVAL_P(&b)->nNumOfElements);
-
-    // zval *d = &b;
-
-    // zval *v;
-
-    // zend_string *k = zend_string_init("t" ,strlen("t") ,0);
-    // hp_print_zstr(k);
-    // if(zend_hash_exists(Z_ARRVAL_P(d), k)){
-    //   v = zend_hash_find(Z_ARRVAL_P(d), k);
-    //   php_var_dump(v, 0);
-    //   php_printf("zend_hash_exists:tt\n");
-    // } else {
-    //   php_printf("zend_hash_exists:ff\n");
-    // }
-
-		RETURN_ZVAL(&hp_globals.stats_count, 0, 1);
+    hp_stop(TSRMLS_C);
+		RETURN_ZVAL(&hp_globals.stats_count, 1, 1);
 	}
   /* else null is returned */
 }
@@ -1636,9 +1601,10 @@ PHP_FUNCTION(xhprof_sample_enable) {
  * @author cjiang
  */
 PHP_FUNCTION(xhprof_sample_disable) {
-  zend_string *strg;
-  strg = strpprintf(0, "hello word");
-  RETURN_STR(strg);
+  if (hp_globals.enabled) {
+    hp_stop(TSRMLS_C);
+    RETURN_ZVAL(&hp_globals.stats_count, 1, 1);
+  }
 }
 
 
@@ -1680,8 +1646,6 @@ PHP_MINIT_FUNCTION(md_xhprof)
   	/* Initialize cpu_frequencies and cur_cpu_id. */
   	hp_globals.cpu_frequencies = NULL;
   	hp_globals.cur_cpu_id = 0;
-
-    array_init(&(hp_globals.stats_count));
 
   	/* no free hp_entry_t structures to start with */
   	hp_globals.entry_free_list = NULL;
