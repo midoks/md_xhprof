@@ -177,9 +177,7 @@ hello: this is a test
 hello: Arraytest
 Part 1 output:
 foo==>bar                               : ct=       2; wt=*;
-foo==>strlen                            : ct=       1; wt=*;
 foo_array==>bar                         : ct=       2; wt=*;
-foo_array==>strlen                      : ct=       1; wt=*;
 main()                                  : ct=       1; wt=*;
 main()==>foo                            : ct=       1; wt=*;
 main()==>foo_array                      : ct=       1; wt=*;
@@ -189,7 +187,6 @@ Part 2a: Ignore call_user_func
 hello: user_func test
 Part 2a output:
 foo==>bar                               : ct=       2; wt=*;
-foo==>strlen                            : ct=       1; wt=*;
 main()                                  : ct=       1; wt=*;
 main()==>test_call_user_func::test_call_user_func: ct=       1; wt=*;
 main()==>xhprof_disable                 : ct=       1; wt=*;
@@ -200,7 +197,6 @@ hello: user_func test
 Part 2b output:
 call_user_func==>foo                    : ct=       1; wt=*;
 foo==>bar                               : ct=       2; wt=*;
-foo==>strlen                            : ct=       1; wt=*;
 main()                                  : ct=       1; wt=*;
 main()==>test_call_user_func::test_call_user_func: ct=       1; wt=*;
 main()==>xhprof_disable                 : ct=       1; wt=*;
@@ -211,7 +207,6 @@ hello: user_func test
 Part 2c output:
 call_user_func==>foo                    : ct=       1; wt=*;
 foo==>bar                               : ct=       2; wt=*;
-foo==>strlen                            : ct=       1; wt=*;
 main()                                  : ct=       1; wt=*;
 main()==>test_call_user_func::test_call_user_func: ct=       1; wt=*;
 main()==>xhprof_disable                 : ct=       1; wt=*;
@@ -221,7 +216,6 @@ Part 3: Ignore call_user_func_array
 hello: calling foo_array
 Part 3 output:
 foo_array==>bar                         : cpu=*; ct=       2; wt=*;
-foo_array==>strlen                      : cpu=*; ct=       1; wt=*;
 main()                                  : cpu=*; ct=       1; wt=*;
 main()==>test_call_user_func_array      : cpu=*; ct=       1; wt=*;
 main()==>xhprof_disable                 : cpu=*; ct=       1; wt=*;
@@ -231,7 +225,6 @@ Part 4: Ignore my_call_user_func_safe
 hello: Array
 Part 4 output:
 foo==>bar                               : ct=       2; wt=*;
-foo==>strlen                            : ct=       1; wt=*;
 main()                                  : ct=       1; wt=*;
 main()==>test_my_call_user_func_safe    : ct=       1; wt=*;
 main()==>xhprof_disable                 : ct=       1; wt=*;
@@ -253,7 +246,6 @@ hello: my_user_func_array_safetest
 Part 5b output:
 call_user_func_array==>foo_array        : ct=       1; mu=*; pmu=*; wt=*;
 foo_array==>bar                         : ct=       2; mu=*; pmu=*; wt=*;
-foo_array==>strlen                      : ct=       1; mu=*; pmu=*; wt=*;
 main()                                  : ct=       1; mu=*; pmu=*; wt=*;
 main()==>test_my_call_user_func_array_safe: ct=       1; mu=*; pmu=*; wt=*;
 main()==>xhprof_disable                 : ct=       1; mu=*; pmu=*; wt=*;
@@ -266,7 +258,6 @@ hello: my_user_func_array_safetest
 Part 5c output:
 call_user_func_array==>foo_array        : ct=       1; mu=*; pmu=*; wt=*;
 foo_array==>bar                         : ct=       2; mu=*; pmu=*; wt=*;
-foo_array==>strlen                      : ct=       1; mu=*; pmu=*; wt=*;
 main()                                  : ct=       1; mu=*; pmu=*; wt=*;
 main()==>test_my_call_user_func_array_safe: ct=       1; mu=*; pmu=*; wt=*;
 main()==>xhprof_disable                 : ct=       1; mu=*; pmu=*; wt=*;

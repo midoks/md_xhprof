@@ -54,4 +54,3 @@ run_init::tests/xhprof_004_inc.php==>implode: ct=       1; wt=*;
 run_init::tests/xhprof_004_require.php==>bar: ct=       1; wt=*;
 run_init::tests/xhprof_004_require.php==>explode: ct=       1; wt=*;
 run_init::tests/xhprof_004_require.php==>implode: ct=       1; wt=*;
-run_init::tests/xhprof_004_require.php==>strlen: ct=       1; wt=*;
