@@ -1360,7 +1360,7 @@ static void hp_end(TSRMLS_D) {
     return;
   }
 
-  php_var_dump(&hp_globals.stats_count, 0);
+  //php_var_dump(&hp_globals.stats_count, 0);
 
   // if(hp_globals.enabled){
   //   zval_dtor(&hp_globals.stats_count);
