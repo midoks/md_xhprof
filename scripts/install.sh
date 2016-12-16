@@ -1,17 +1,17 @@
 #!/bin/sh
 
-echo -n "You PHP Dir?"
-read PHP_DIR
-echo $PHP_DIR
-# case $PHP_DIR in
-#     y|Y|yes|Yes)
-#         PHP_DIR='/usr/local/php'
-#         ;;
-#     n|N|no|No)
-#         exit 0
-#         ENV='uat'
-#         ;;
-# esac
+echo "You PHP Dir[Prefix]?"
+read DIR
+
+case $DIR in
+    $DIR|y|Y|yes|Yes)
+        PHP_DIR=$DIR
+        ;;
+    n|N|no|No)
+        exit 0
+        ;;
+esac
+
 
 wget https://github.com/midoks/md_xhprof/archive/master.zip
 
@@ -22,6 +22,7 @@ cd md_xhprof-master/src
 
 
 #/usr/local/php70
+
 
 $PHP_DIR/bin/phpize
 
