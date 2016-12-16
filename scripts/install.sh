@@ -15,7 +15,7 @@ echo $PHP_DIR
 
 wget https://github.com/midoks/md_xhprof/archive/master.zip
 
-unzip master.zip 
+unzip -o master.zip 
 rm -f master.zip
 
 cd md_xhprof-master/src
