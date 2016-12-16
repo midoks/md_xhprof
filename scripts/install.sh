@@ -2,6 +2,7 @@
 
 echo -n "You PHP Dir?"
 read PHP_DIR
+echo $PHP_DIR
 # case $PHP_DIR in
 #     y|Y|yes|Yes)
 #         PHP_DIR='/usr/local/php'
@@ -23,6 +24,9 @@ cd md_xhprof-master/src
 #/usr/local/php70
 
 $PHP_DIR/bin/phpize
+
+sleep 1
+
 ./configure \
 --with-php-config=$PHP_DIR/bin/php-config
 make && make install
