@@ -28,3 +28,4 @@ make && make install
 - export USE_ZEND_ALLOC=0 	#关闭内存管理
 - export USE_ZEND_DTRACE=1 	#开启DTRACE调试
 - yum install valgrind
+- valgrind --leak-check=full php leak.php

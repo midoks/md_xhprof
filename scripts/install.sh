@@ -1,3 +1,3 @@
 #!/bin/sh
 
-echo "h,m"
+wget https://github.com/midoks/md_xhprof/archive/master.zip
