@@ -19,5 +19,5 @@ make && make install
 
 # 调试
 
-- export USE_ZEND_ALLOC=0 	#设置环境变量关闭内存管理
+- export USE_ZEND_ALLOC=0 	#关闭内存管理
 - export USE_ZEND_DTRACE=1 	#开启DTRACE调试
