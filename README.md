@@ -3,6 +3,12 @@
 
 # 安装
 ```
+
+
+# 快速安装
+curl -fsSL  https://raw.githubusercontent.com/midoks/md_xhprof/master/scripts/install.sh | sh
+
+
 cd ~~/md_xhprof/src
 $DIR/php/$PHP_VER/bin/phpize
 ./configure \
@@ -21,3 +27,4 @@ make && make install
 
 - export USE_ZEND_ALLOC=0 	#关闭内存管理
 - export USE_ZEND_DTRACE=1 	#开启DTRACE调试
+- yum install valgrind
