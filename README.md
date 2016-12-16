@@ -16,3 +16,8 @@ make && make install
 - PHP7编译时要使用(--enable-dtrace)
  * http://lxr.php.net/xref/PHP-7.0/Zend/zend.c#687
  * http://lxr.php.net/xref/PHP-7.1/Zend/zend.c#702
+
+ # 调试
+
+ export USE_ZEND_ALLOC=0 	#设置环境变量关闭内存管理
+ export USE_ZEND_DTRACE=1 	#开启DTRACE调试
