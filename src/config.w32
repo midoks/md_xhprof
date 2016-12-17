@@ -8,6 +8,6 @@
 // ARG_ENABLE("md_xhprof", "enable md_xhprof support", "no");
 
 if (PHP_MD_XHPROF != "no") {
-	EXTENSION("md_xhprof", "md_xhprof.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+	EXTENSION("md_xhprof", "md_xhprof.c xhprof.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
 }
 

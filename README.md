@@ -4,7 +4,6 @@
 # 安装
 ```
 
-
 # 快速安装
 curl -fsSL  https://raw.githubusercontent.com/midoks/md_xhprof/master/scripts/install.sh | sh
 
@@ -29,3 +28,4 @@ make && make install
 - export USE_ZEND_DTRACE=1 	#开启DTRACE调试
 - yum install valgrind
 - valgrind --leak-check=full php leak.php
+- php -dvld.active=1 leak.php 

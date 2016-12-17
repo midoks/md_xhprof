@@ -89,7 +89,6 @@ typedef struct hp_global_t {
 
   /* Holds all the xhprof statistics */
   zval              stats_count;
-  zval              tmp;
 
   /* Indicates the current xhprof mode or level */
   int               profiler_level;
@@ -301,6 +300,7 @@ void hp_init_profiler_state(int level TSRMLS_DC) {
   /* Init stats_count */
   array_init(&hp_globals.stats_count);
   
+  
   /* NOTE(cjiang): some fields such as cpu_frequencies take relatively longer
    * to initialize, (5 milisecond per logical cpu right now), therefore we
    * calculate them lazily. */
@@ -328,6 +328,10 @@ void hp_clean_profiler_state(TSRMLS_D) {
   /* Call current mode's exit cb */
   hp_globals.mode_cb.exit_cb(TSRMLS_C);
 
+  if (hp_globals.enabled){
+    zval_dtor(&hp_globals.stats_count);
+  }
+  
   /* Clear globals */
   hp_globals.entries = NULL;
   hp_globals.profiler_level = 1;
@@ -707,8 +711,6 @@ void hp_inc_count(zval *counts, char *name, long count TSRMLS_DC) {
   }
 }
 
-
-#define HP_ZVAL_NAME(z)  (zval hp_globals_counts_##z)
 /**
  * Looksup the hash table for the given symbol
  * Initializes a new array() if symbol is not present
@@ -716,10 +718,6 @@ void hp_inc_count(zval *counts, char *name, long count TSRMLS_DC) {
  * @author kannan, veeve
  */
 zval * hp_hash_lookup(char *symbol  TSRMLS_DC) {
-
-  php_printf("symbol:%s\n", symbol);
-  static int hp_i = 0;
-  ++hp_i;
   zval *p = (zval*)0;
   
   /* Lookup our hash table */
@@ -727,18 +725,11 @@ zval * hp_hash_lookup(char *symbol  TSRMLS_DC) {
   if(zend_hash_str_exists(ht, symbol, strlen(symbol))){
       return zend_hash_str_find(ht, symbol, strlen(symbol));
   } else {
-
-    // zval tmp;
-    // ZVAL_COPY_VALUE(&tmp, &p->val);
-    // ZVAL_UNDEF(&p->val);
-
-    array_init(&hp_globals.tmp);
-    //php_var_dump(&hp_globals.tmp, 0);
-
-    if (add_assoc_zval(&hp_globals.stats_count, symbol, &hp_globals.tmp) == SUCCESS){
+    zval tmp;
+    array_init(&tmp);
+    if (add_assoc_zval(&hp_globals.stats_count, symbol, &tmp) == SUCCESS){
       p = zend_hash_str_find(ht, symbol, strlen(symbol));
     }
-    
     return p;
   }
 }
@@ -825,10 +816,10 @@ int bind_to_cpu(uint32 cpu_id) {
   CPU_ZERO(&new_mask);
   CPU_SET(cpu_id, &new_mask);
 
-  // if (SET_AFFINITY(0, sizeof(cpu_set_t), &new_mask) < 0) {
-  //   perror("setaffinity");
-  //   return -1;
-  // }
+  if (SET_AFFINITY(0, sizeof(cpu_set_t), &new_mask) < 0) {
+    perror("setaffinity");
+    return -1;
+  }
 
   /* record the cpu_id the process is bound to. */
   hp_globals.cur_cpu_id = cpu_id;
@@ -883,10 +874,10 @@ static void get_all_cpu_frequencies() {
  */
 int restore_cpu_affinity(cpu_set_t * prev_mask) {
 
-  // if (SET_AFFINITY(0, sizeof(cpu_set_t), prev_mask) < 0) {
-  //   perror("restore setaffinity");
-  //   return -1;
-  // }
+  if (SET_AFFINITY(0, sizeof(cpu_set_t), prev_mask) < 0) {
+    perror("restore setaffinity");
+    return -1;
+  }
 
   /* default value ofor cur_cpu_id is 0. */
   hp_globals.cur_cpu_id = 0;
@@ -1338,6 +1329,7 @@ static void hp_begin(long level, long xhprof_flags TSRMLS_DC) {
   }
 }
 
+
 /**
  * Called at request shutdown time. Cleans the profiler's global state.
  */
@@ -1348,33 +1340,8 @@ static void hp_end(TSRMLS_D) {
     return;
   }
 
-  //php_var_dump(&hp_globals.stats_count, 0);
-
   /* Stop profiler if enabled */
   if (hp_globals.enabled) {
-
-    HashTable *ht = Z_ARRVAL_P(&hp_globals.stats_count);
-    size_t count = zend_hash_num_elements(ht);
-    
-    // php_printf("count:%d\n", count);
-
-    zend_string *key;
-    zval *val;
-
-    ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val){
-
-      zend_hash_del(ht,key);
-
-    }ZEND_HASH_FOREACH_END();
-
-    //zval_dtor(val);
-    //zend_string_release(key);
-    //zval_dtor(&hp_globals.stats_count);
-    
-    //zval_dtor(&hp_globals.tmp);
-
-    
-
     hp_stop(TSRMLS_C);
   }
 
