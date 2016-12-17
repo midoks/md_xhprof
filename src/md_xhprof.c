@@ -1696,7 +1696,6 @@ PHP_MINFO_FUNCTION(md_xhprof)
   }
 
   php_info_print_table_row(2, "Version", XHPROF_VERSION);
-	php_info_print_table_row(2, "PHP_VERSION_ID", PHP_VERSION);
 
 	php_info_print_table_end();
 
