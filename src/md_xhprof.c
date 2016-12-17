@@ -1487,7 +1487,7 @@ static int le_md_xhprof;
 
 PHP_INI_BEGIN()
 
-PHP_INI_ENTRY("md_xhprof.output_dir", "", PHP_INI_ALL, NULL)
+PHP_INI_ENTRY("xhprof.output_dir", "", PHP_INI_ALL, NULL)
 
 PHP_INI_END()
 
