@@ -1,6 +1,9 @@
 # md_xhprof
+```
 为xhprof升级版,与PHP7配合使用
-
+#使用时需要设置环境变量
+export USE_ZEND_DTRACE=1
+```
 # 安装
 ```
 
