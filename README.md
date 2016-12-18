@@ -32,3 +32,10 @@ make && make install
 - yum install valgrind
 - valgrind --leak-check=full php leak.php
 - php -dvld.active=1 leak.php 
+
+# 相关
+```
+PHP集成环境(mac),已经集成
+https://github.com/midoks/mdserver-mac
+```
+
