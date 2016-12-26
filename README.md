@@ -39,3 +39,9 @@ PHP集成环境(mac),已经集成
 https://github.com/midoks/mdserver-mac
 ```
 
+# Windows Xhprof
+- https://github.com/midoks/midoks/tree/master/c/win_php_xhprof
+- [php5.5_v11_ts_dll](https://github.com/midoks/midoks/tree/master/c/win_php_xhprof/xhprof5.5/dll)
+- [php7_v14_ts_dll](https://github.com/midoks/midoks/tree/master/c/win_php_xhprof/md_xhprof7/dll)
+
+
