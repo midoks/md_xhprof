@@ -37,6 +37,8 @@ make && make install
 ```
 PHP集成环境(mac),已经集成
 https://github.com/midoks/mdserver-mac
+PHP集成环境(win)
+https://github.com/midoks/MDserver_64
 ```
 
 # Windows Xhprof(官方的有问题)
