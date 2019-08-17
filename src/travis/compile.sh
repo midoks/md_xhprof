@@ -1,2 +1,2 @@
 #!/bin/sh
-phpize && ./configure --enable-mdprof && make clean && make
+cd src && phpize && ./configure --enable-mdprof && make clean && make
