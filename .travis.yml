@@ -15,8 +15,8 @@ env:
 
 #Compile
 before_script:
-    - ./travis/compile.sh
+    - ./src/travis/compile.sh
 
 # Run PHPs run-tests.php 
 script:
-    - ./travis/run-test.sh
+    - ./src/travis/run-test.sh
