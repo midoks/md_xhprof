@@ -1,4 +1,7 @@
 # md_xhprof
+
+- [![Build Status](https://travis-ci.org/midoks/md_xhprof.svg?branch=master)](https://travis-ci.org/midoks/md_xhprof)
+
 ```
 为xhprof升级版,与PHP7配合使用
 #使用时需要设置环境变量
